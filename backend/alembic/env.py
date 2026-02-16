@@ -27,7 +27,10 @@ def run_migrations_online() -> None:
     # 環境変数からDB URL取得 (PaaS対応)
     configuration = config.get_section(config.config_ini_section, {})
     if os.environ.get("DATABASE_URL"):
-        configuration["sqlalchemy.url"] = os.environ.get("DATABASE_URL")
+        url = os.environ.get("DATABASE_URL")
+        if url.startswith("postgres://"):
+            url = url.replace("postgres://", "postgresql://", 1)
+        configuration["sqlalchemy.url"] = url
 
     connectable = engine_from_config(
         configuration,
