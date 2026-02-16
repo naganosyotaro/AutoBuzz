@@ -23,10 +23,13 @@ class Settings(BaseSettings):
     X_API_KEY: str = ""
     X_API_SECRET: str = ""
     X_BEARER_TOKEN: str = ""
+    X_ACCESS_TOKEN: str = ""
+    X_ACCESS_TOKEN_SECRET: str = ""
 
     # Threads API
     THREADS_APP_ID: str = ""
     THREADS_APP_SECRET: str = ""
+    THREADS_ACCESS_TOKEN: str = ""
 
     # News API
     NEWS_API_KEY: str = ""
@@ -45,6 +48,25 @@ class Settings(BaseSettings):
         return json.loads(self.CORS_ORIGINS)
 
     model_config = {"env_file": "../.env", "env_file_encoding": "utf-8"}
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        # Render等のPaaSが提供する postgres:// を postgresql:// に置換
+        if self.DATABASE_URL and self.DATABASE_URL.startswith("postgres://"):
+            self.DATABASE_URL = self.DATABASE_URL.replace("postgres://", "postgresql://", 1)
+        
+        # Async用のドライバ指定がない場合、PostgreSQLなら +asyncpg を付与
+        if self.DATABASE_URL.startswith("postgresql://") and "+asyncpg" not in self.DATABASE_URL:
+            self.DATABASE_URL_SYNC = self.DATABASE_URL  # Sync用はそのまま
+            self.DATABASE_URL = self.DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
+        elif self.DATABASE_URL.startswith("sqlite"):
+            # SQLiteの場合はそのまま (dev env)
+            pass
+        
+        # デプロイ環境でDATABASE_URL_SYNCがセットされていない場合の補完
+        if not self.DATABASE_URL_SYNC and self.DATABASE_URL.startswith("postgresql+asyncpg://"):
+             self.DATABASE_URL_SYNC = self.DATABASE_URL.replace("+asyncpg", "")
+
 
 
 settings = Settings()

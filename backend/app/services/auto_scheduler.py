@@ -49,6 +49,25 @@ async def run_autopilot_for_user(user_id: str) -> list:
         sns_result = await db.execute(select(SnsAccount).where(SnsAccount.user_id == user_id))
         sns_accounts = {a.platform: a for a in sns_result.scalars().all()}
 
+        # .envからのフォールバック (DBにない場合)
+        from app.config import settings
+        
+        if "x" not in sns_accounts and settings.X_ACCESS_TOKEN:
+            # 簡易オブジェクトを作成して擬似的にアカウントとして扱う
+            sns_accounts["x"] = type("SnsAccountMock", (), {
+                "access_token": settings.X_ACCESS_TOKEN,
+                "access_token_secret": settings.X_ACCESS_TOKEN_SECRET,
+                "platform": "x"
+            })()
+            logger.info("Xアカウント: .env設定を使用します")
+
+        if "threads" not in sns_accounts and settings.THREADS_ACCESS_TOKEN:
+             sns_accounts["threads"] = type("SnsAccountMock", (), {
+                "access_token": settings.THREADS_ACCESS_TOKEN,
+                "platform": "threads"
+            })()
+             logger.info("Threadsアカウント: .env設定を使用します")
+
         for genre in genres:
             genre_name = getattr(genre, "genre_name", None)
             keywords = getattr(genre, "keywords_list", []) if hasattr(genre, "keywords_list") else []

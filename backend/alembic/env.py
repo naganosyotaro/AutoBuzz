@@ -24,8 +24,13 @@ def run_migrations_offline() -> None:
 
 
 def run_migrations_online() -> None:
+    # 環境変数からDB URL取得 (PaaS対応)
+    configuration = config.get_section(config.config_ini_section, {})
+    if os.environ.get("DATABASE_URL"):
+        configuration["sqlalchemy.url"] = os.environ.get("DATABASE_URL")
+
     connectable = engine_from_config(
-        config.get_section(config.config_ini_section, {}),
+        configuration,
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
     )
