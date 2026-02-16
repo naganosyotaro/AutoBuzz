@@ -1,0 +1,33 @@
+services:
+  # Backend Service
+  - type: web
+    name: autobuzz-backend
+    env: docker
+    dockerContext: backend
+    dockerfilePath: backend/Dockerfile
+    plan: free
+    region: singapore
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: autobuzz-db
+          property: connectionString
+      - key: X_ACCESS_TOKEN
+        sync: false
+      - key: X_ACCESS_TOKEN_SECRET
+        sync: false
+      - key: THREADS_ACCESS_TOKEN
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: NEWS_API_KEY
+        sync: false
+      - key: CORS_ORIGINS
+        value: "https://your-frontend-url.vercel.app" # フロントエンドのデプロイ後に正しいURLに更新してください
+
+databases:
+  - name: autobuzz-db
+    databaseName: autobuzz
+    user: autobuzz
+    plan: free # ※無料プランは90日でデータが消える可能性があるため注意 (本番運用はStarter推奨)
+    region: singapore
