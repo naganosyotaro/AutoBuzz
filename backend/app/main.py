@@ -100,6 +100,91 @@ async def setup_admin_user():
     return {"message": "Admin user created successfully!", "email": email, "password": password}
 
 
+@app.get("/api/debug-sns")
+async def debug_sns_endpoint():
+    """SNS設定のデバッグ情報を返すエンドポイント"""
+    import io
+    import sys
+    from contextlib import redirect_stdout
+    
+    # 標準出力をキャプチャするためのバッファ
+    f = io.StringIO()
+    
+    # 既存のロジックを実行（ただしprint出力したいので、関数化するか、ここで再実装）
+    # シンプルにここでロジックを書く
+    
+    with redirect_stdout(f):
+        print("=== SNS Debug Start ===")
+        from app.config import settings
+        from app.database import async_session
+        from app.models.user import User
+        from app.models.sns_account import SnsAccount
+        from sqlalchemy import select
+        from app.services.sns_poster import post_to_x
+        import os
+
+        # 1. 環境変数
+        print(f"X_API_KEY: {'[SET]' if settings.X_API_KEY else '[MISSING]'}")
+        print(f"X_API_SECRET: {'[SET]' if settings.X_API_SECRET else '[MISSING]'}")
+        
+        async with async_session() as session:
+            # 2. ユーザー
+            user_result = await session.execute(select(User).limit(1))
+            user = user_result.scalar_one_or_none()
+            
+            if not user:
+                print("Error: User not found in DB.")
+            else:
+                print(f"User found: {user.email}")
+                
+                # 3. SNSアカウント
+                sns_result = await session.execute(select(SnsAccount).where(SnsAccount.user_id == user.id, SnsAccount.platform == 'x'))
+                sns_account = sns_result.scalar_one_or_none()
+                
+                access_token = None
+                access_token_secret = None
+
+                if not sns_account:
+                    print("SnsAccount (X) not found in DB.")
+                    if settings.X_ACCESS_TOKEN:
+                        print("Falling back to .env X_ACCESS_TOKEN...")
+                        access_token = settings.X_ACCESS_TOKEN
+                        access_token_secret = settings.X_ACCESS_TOKEN_SECRET
+                    else:
+                        print("Error: No X access token found in DB or .env")
+                else:
+                    print("SnsAccount (X) found in DB.")
+                    access_token = sns_account.access_token
+                    access_token_secret = sns_account.access_token_secret
+
+                # 4. 投稿テスト
+                if access_token:
+                    print("Attempting to post test tweet...")
+                    try:
+                        result = await post_to_x(
+                            content=f"AutoBuzz Debug Test {os.urandom(4).hex()}",
+                            access_token=access_token,
+                            access_token_secret=access_token_secret or ""
+                        )
+                        print("Result:", result)
+                        
+                        if result.get("mock"):
+                            print("MOOOOOOCK! The post was mocked.")
+                            print("Reason:", result.get("message"))
+                        else:
+                            print("SUCCESS! Posted to X.")
+                    except Exception as e:
+                        print(f"EXCEPTION during posting: {e}")
+                        import traceback
+                        traceback.print_exc()
+
+        print("=== SNS Debug End ===")
+
+    output = f.getvalue()
+    return {"log": output}
+
+
+
 @app.get("/api/health")
 async def health():
     return {"status": "ok", "service": "AutoBuzz API"}
