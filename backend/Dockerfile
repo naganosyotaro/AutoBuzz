@@ -18,5 +18,9 @@ COPY . .
 # ポート8000を公開
 EXPOSE 8000
 
-# アプリケーションを起動 (マイグレーション実行後に起動)
-CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"]
+# エントリーポイントスクリプトをコピーして実行権限を付与
+COPY entrypoint.sh .
+RUN chmod +x entrypoint.sh
+
+# アプリケーションを起動 (DB接続待機 -> マイグレーション -> サーバー起動)
+CMD ["./entrypoint.sh"]
