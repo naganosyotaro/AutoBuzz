@@ -45,7 +45,15 @@ class Settings(BaseSettings):
 
     @property
     def cors_origins_list(self) -> List[str]:
-        return json.loads(self.CORS_ORIGINS)
+        try:
+            parsed = json.loads(self.CORS_ORIGINS)
+            if isinstance(parsed, list):
+                return parsed
+            # JSON formatted but not a list? wrap it
+            return [str(parsed)]
+        except json.JSONDecodeError:
+            # Fallback for plain string (single URL or comma-separated)
+            return [origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]
 
     model_config = {"env_file": "../.env", "env_file_encoding": "utf-8"}
 
