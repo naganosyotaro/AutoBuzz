@@ -67,6 +67,38 @@ app.include_router(links.router)
 app.include_router(analytics.router)
 app.include_router(autopilot.router)
 
+@app.get("/api/setup-admin-user")
+async def setup_admin_user():
+    """一時的な管理者作成エンドポイント"""
+    from app.database import async_session
+    from app.models.user import User
+    from app.core import hash_password
+    from sqlalchemy import select
+
+    email = "admin@autobuzz.com"
+    password = "admin_password_1234"
+    
+    async with async_session() as session:
+        # 既存チェック
+        result = await session.execute(select(User).where(User.email == email))
+        existing_user = result.scalar_one_or_none()
+        
+        if existing_user:
+            return {"message": "Admin user already exists", "email": email}
+
+        # 管理者ユーザー作成
+        admin_user = User(
+            email=email,
+            password_hash=hash_password(password),
+            is_admin=True,
+            plan_type="pro",
+            auto_post_enabled=True
+        )
+        session.add(admin_user)
+        await session.commit()
+    
+    return {"message": "Admin user created successfully!", "email": email, "password": password}
+
 
 @app.get("/api/health")
 async def health():
